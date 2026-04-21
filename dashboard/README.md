@@ -32,11 +32,11 @@ Before starting, make sure `dbt build` has run successfully so the mart tables e
 2. In the **Data** panel on the right:
    - **Dimension:** `order_date`
    - **Metric:** `gross_merchandise_value` (rename it to "Gross Merchandise Value (BRL)" by clicking the metric name)
-3. Click **+ Add metric** → add `total_orders` as a second metric (it will plot on the right axis).
+3. Click **+ Add metric** → add `avg_review_score` as a second metric and set it on the right axis.
 4. In the **Style** panel:
-   - Set line colours to distinguish GMV vs order count clearly.
+   - Set line colours to distinguish GMV vs review score clearly.
    - Enable **Data labels** on the peaks if you want callouts.
-5. Click the chart title area and set it to: **"Daily Gross Merchandise Value & Order Volume (2016–2018)"**.
+5. Click the chart title area and set it to: **"Daily GMV and Average Customer Satisfaction"**.
 6. Add a **Date range control** (Insert → Date range control) and link it to this chart so viewers can filter by period.
 
 ---
@@ -57,10 +57,10 @@ Before starting, make sure `dbt build` has run successfully so the mart tables e
    - **Dimension:** `customer_state`
    - **Metric:** `total_orders` (rename to "Total Orders")
    - **Sort:** `total_orders` Descending
-3. Click **+ Add metric** → add `avg_delivery_days` as a second metric.
+3. Click **+ Add metric** → add `gross_merchandise_value` and `avg_delivery_days`.
 4. In the **Style** panel:
    - Set bar colour for `total_orders` (e.g. blue).
-   - Enable the **right Y-axis** for `avg_delivery_days` so both metrics are visible without scale clash.
+   - Keep `avg_delivery_days` on the right Y-axis so values remain readable.
    - Rotate X-axis labels 45° (the state codes are short so this is optional).
 5. Set chart title to: **"Order Volume and Average Delivery Days by Brazilian State"**.
 

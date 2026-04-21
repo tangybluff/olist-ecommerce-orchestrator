@@ -1,12 +1,11 @@
 # Step-by-Step Reproducibility Guide
 
-This guide walks from zero to a daily orchestrated Olist data pipeline.
+This guide rebuilds the project from zero in your own GCP environment and mirrors the root README runbook.
 
-## 1) Create and activate virtual environment
+## 1) Clone repo and create virtual environment
 
 ```bash
-# Clone repo to whatever local folder you want
-cd "C:/Users/.../Downloads"
+git clone https://github.com/tangybluff/olist-ecommerce-orchestrator.git
 cd olist-ecommerce-orchestrator
 python -m venv .venv
 source .venv/Scripts/activate
@@ -14,102 +13,112 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## 2) Prepare credentials securely
-
-Do not hardcode credentials in source files.
-
-### Kaggle
-
-Option A: environment variables
+## 2) Authenticate GCP using ADC (recommended)
 
 ```bash
-export KAGGLE_USERNAME="your_username"
-export KAGGLE_KEY="your_key"
+gcloud auth login
+gcloud config set project YOUR_GCP_PROJECT_ID
+gcloud auth application-default login
+gcloud auth application-default set-quota-project YOUR_GCP_PROJECT_ID
 ```
 
-Option B: Kaggle credentials file
+Replace:
+- `YOUR_GCP_PROJECT_ID` with your project id.
 
-- Create `~/.kaggle/kaggle.json`
-- Restrict permissions as needed by your OS.
-
-### GCP
+## 3) Configure and apply Terraform
 
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS="/absolute/path/to/service-account.json"
-export GCP_PROJECT_ID="your-gcp-project-id"
-export BQ_LOCATION="europe-southwest1"
-```
-
-## 3) Provision cloud resources
-
-```bash
+cp infra/envs/dev/terraform.tfvars.example infra/envs/dev/terraform.tfvars
 cd infra/envs/dev
-cp terraform.tfvars.example terraform.tfvars
-# edit terraform.tfvars with your values
 terraform init
-terraform plan -var-file=terraform.tfvars
-terraform apply -var-file=terraform.tfvars
+terraform apply -auto-approve
 cd ../../..
 ```
 
-## 4) Configure pipeline environment
+Edit `infra/envs/dev/terraform.tfvars` before apply:
+- `gcp_project_id`
+- `gcp_region`
+- `raw_dataset_id`
+- `analytics_dataset_base`
+- `staging_bucket_name` (must be globally unique)
+
+## 4) Configure runtime environment
 
 ```bash
 cp .env.example .env
-# edit .env values
-export BQ_RAW_DATASET="raw_olist_data"
-export BQ_DBT_DATASET="olist_analytics"
-export DLT_PIPELINE_NAME="olist_ecommerce_ingestion"
-export DLT_LOAD_MODE="staged"
-export DLT_STAGING_BUCKET_URL="gs://your-olist-staging-bucket"
-export WRITE_DISPOSITION="replace"
 ```
 
-## 5) Run ingestion (Kaggle -> BigQuery raw)
+Edit `.env` and set:
+- `GCP_PROJECT_ID`
+- `BQ_RAW_DATASET`
+- `BQ_DBT_DATASET`
+- `BQ_LOCATION`
+- `DLT_PIPELINE_NAME`
+- `DLT_LOAD_MODE=staged`
+- `DLT_STAGING_BUCKET_URL=gs://YOUR_BUCKET_NAME`
+- `WRITE_DISPOSITION=replace`
+- `KAGGLE_USERNAME`
+- `KAGGLE_KEY`
+- `DBT_PROFILES_DIR=transform`
+
+## 5) Configure dbt profile
 
 ```bash
+cp transform/profiles.yml.example transform/profiles.yml
+```
+
+Edit `transform/profiles.yml`:
+- `project`: your GCP project id
+- `dataset`: keep env-var pattern via `BQ_DBT_DATASET`
+- `location`: keep env-var pattern via `BQ_LOCATION`
+- `method`: set to `oauth` when using ADC
+
+## 6) Run ingestion (Kaggle -> BigQuery raw)
+
+```bash
+set -a && source .env && set +a
 python -m ingestion.pipeline.run
 ```
 
 Expected outcome:
-
-- Raw Olist tables loaded into BigQuery dataset `raw_olist_data`
-- Only source data from the Olist Kaggle dataset is used
-
-## 6) Configure dbt profile
-
-```bash
-cd transform
-cp profiles.yml.example profiles.yml
-```
-
-Ensure required environment variables are exported.
+- Log includes `Ingestion completed`
+- Nine raw tables exist in your raw dataset
 
 ## 7) Run dbt transformations
 
 ```bash
+cd transform
 dbt deps --profiles-dir .
 dbt build --profiles-dir .
+cd ..
 ```
 
 Expected outcome:
+- dbt summary like `PASS=28 WARN=0 ERROR=0`
+- Marts created in `<BQ_DBT_DATASET>_marts`
 
-- `staging`, `intermediate`, and `marts` schemas created under analytics dataset
-- dbt tests pass
-
-## 8) Run Dagster locally
+## 8) Verify marts in BigQuery
 
 ```bash
-cd ..
+bq ls --project_id=YOUR_GCP_PROJECT_ID YOUR_GCP_PROJECT_ID:<BQ_DBT_DATASET>_marts
+```
+
+Expected tables:
+- `mrt_daily_sales`
+- `mrt_seller_performance`
+- `mrt_state_sales`
+
+## 9) Run Dagster locally (optional)
+
+```bash
 dg dev -m dagster_orchestration.jobs.definitions
 ```
 
 In Dagster UI:
+- Run `daily_olist_pipeline`
+- Confirm `daily_schedule` is available
 
-- Run `daily_olist_pipeline` manually to validate orchestration.
-- Confirm schedule `daily_schedule` is active for daily runs.
-
-## 9) Run with Docker (optional)
+## 10) Run with Docker (optional)
 
 ```bash
 docker compose build
@@ -118,40 +127,13 @@ docker compose up dagster-webserver dagster-daemon
 ```
 
 Notes:
-
-- Ensure `.env` exists and contains your non-secret configuration values.
+- Ensure `.env` exists before running containers.
 - Do not bake secrets into images.
-- Mount service-account credentials as read-only files when needed.
 
-## 10) CI validation
+## 11) Validation checklist
 
-GitHub Actions CI (`.github/workflows/ci.yml`) validates:
-
-- Python module import integrity
-- dbt dependency resolution
-- dbt parse
-
-Run equivalent checks locally before push:
-
-```bash
-python -m compileall ingestion dagster_orchestration
-python -c "from ingestion.pipeline.run import run"
-python -c "from dagster_orchestration.jobs.definitions import defs"
-cd transform
-dbt deps --profiles-dir .
-dbt parse --profiles-dir .
-```
-
-## 11) Production notes
-
-- Use Secret Manager or equivalent for credentials.
-- Run Dagster daemon and webserver in a managed runtime.
-- Keep location baseline `europe-southwest1` unless a required service is unavailable.
-
-## 12) Validation checklist
-
-- Ingestion creates expected raw tables.
-- dbt build finishes successfully.
-- Marts tables contain rows.
+- Ingestion created expected raw tables.
+- dbt build completed successfully.
+- Marts contain rows.
 - Dagster can run ingestion and dbt in sequence.
 

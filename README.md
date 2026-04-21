@@ -269,11 +269,180 @@ dg dev -m dagster_orchestration.jobs.definitions
 
 ## Reproducibility
 
-To reproduce this pipeline from scratch:
-1. Provision GCP infrastructure: `cd infra/envs/dev && terraform apply`
-2. Copy `.env.example` → `.env` and fill in all values (see inline comments in each file for which variables to change).
-3. Copy `transform/profiles.yml.example` → `transform/profiles.yml` and fill in your project/credentials.
-4. Run `python -m ingestion.pipeline.run` to load raw data.
-5. Run `cd transform && dbt deps && dbt build --profiles-dir .` to build all models.
-6. Start Dagster: `dg dev -m dagster_orchestration.jobs.definitions`.
+Use this section to rebuild the full platform in your own GCP project from zero.
+
+### Step 0 - Prerequisites
+
+Install and verify:
+- Python 3.12+
+- Google Cloud CLI
+- Terraform 1.14+
+- A Kaggle account and API key
+
+Run:
+
+```bash
+python --version
+gcloud --version
+terraform --version
+```
+
+### Step 1 - Clone the project
+
+```bash
+git clone https://github.com/tangybluff/olist-ecommerce-orchestrator.git
+cd olist-ecommerce-orchestrator
+```
+
+Files you will edit in the next steps:
+- `infra/envs/dev/terraform.tfvars`
+- `.env`
+- `transform/profiles.yml`
+
+### Step 2 - Create your own GCP project context
+
+Set your project and authenticate Application Default Credentials (ADC):
+
+```bash
+gcloud auth login
+gcloud config set project YOUR_GCP_PROJECT_ID
+gcloud auth application-default login
+gcloud auth application-default set-quota-project YOUR_GCP_PROJECT_ID
+```
+
+Replace:
+- `YOUR_GCP_PROJECT_ID` with your real project id (example: `my-de-project-123`).
+
+### Step 3 - Configure Terraform variables
+
+Create your Terraform variables file:
+
+```bash
+cp infra/envs/dev/terraform.tfvars.example infra/envs/dev/terraform.tfvars
+```
+
+Edit `infra/envs/dev/terraform.tfvars` and update:
+- `gcp_project_id` -> your project id
+- `gcp_region` -> your preferred region (example: `europe-southwest1`)
+- `raw_dataset_id` -> raw dataset name (example: `raw_olist_data`)
+- `analytics_dataset_base` -> analytics base name (example: `olist_analytics`)
+- `staging_bucket_name` -> globally unique bucket name
+
+### Step 4 - Provision cloud infrastructure
+
+```bash
+cd infra/envs/dev
+terraform init
+terraform apply -auto-approve
+cd ../../..
+```
+
+Expected resources:
+- One GCS staging bucket
+- One raw BigQuery dataset
+- One analytics BigQuery dataset base (dbt will create suffixed datasets)
+
+### Step 5 - Configure runtime environment variables
+
+Create local env file:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and update these values:
+- `GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID`
+- `BQ_RAW_DATASET=YOUR_RAW_DATASET` (must match Terraform raw dataset)
+- `BQ_DBT_DATASET=YOUR_ANALYTICS_BASE` (must match Terraform analytics base)
+- `BQ_LOCATION=YOUR_BQ_LOCATION` (must match dataset location)
+- `DLT_PIPELINE_NAME=YOUR_PIPELINE_NAME` (any stable name)
+- `DLT_LOAD_MODE=staged`
+- `DLT_STAGING_BUCKET_URL=gs://YOUR_STAGING_BUCKET_NAME`
+- `WRITE_DISPOSITION=replace` (or `append` for different behavior)
+- `KAGGLE_USERNAME=YOUR_KAGGLE_USERNAME`
+- `KAGGLE_KEY=YOUR_KAGGLE_KEY`
+- `DBT_PROFILES_DIR=transform`
+
+### Step 6 - Configure dbt BigQuery profile
+
+Create profile file:
+
+```bash
+cp transform/profiles.yml.example transform/profiles.yml
+```
+
+Edit `transform/profiles.yml` and set:
+- `project` -> your GCP project id
+- `dataset` -> `{{ env_var('BQ_DBT_DATASET', 'olist_analytics') }}` (keep env-var pattern)
+- `location` -> `{{ env_var('BQ_LOCATION', 'europe-southwest1') }}`
+- auth method: use `method: oauth` if using ADC (recommended local setup)
+- use service-account method only if you explicitly manage key files
+
+### Step 7 - Install Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+If you see dependency warnings but installation completes, continue unless there is a hard error.
+
+### Step 8 - Run ingestion (Kaggle -> BigQuery raw)
+
+```bash
+set -a && source .env && set +a
+python -m ingestion.pipeline.run
+```
+
+Expected result:
+- Log line containing `Ingestion completed`
+- Nine raw tables loaded in your raw dataset
+
+### Step 9 - Run dbt transformations and tests
+
+```bash
+cd transform
+dbt deps --profiles-dir .
+dbt build --profiles-dir .
+cd ..
+```
+
+Expected result:
+- dbt summary similar to: `PASS=28 WARN=0 ERROR=0`
+- Final marts created in dataset: `<BQ_DBT_DATASET>_marts`
+
+### Step 10 - Verify output tables in BigQuery
+
+```bash
+bq ls --project_id=YOUR_GCP_PROJECT_ID YOUR_GCP_PROJECT_ID:<BQ_DBT_DATASET>_marts
+```
+
+You should see:
+- `mrt_daily_sales`
+- `mrt_seller_performance`
+- `mrt_state_sales`
+
+### Step 11 - Run orchestration locally (optional)
+
+```bash
+dg dev -m dagster_orchestration.jobs.definitions
+```
+
+Open Dagster UI at `http://localhost:3000` and trigger `daily_olist_pipeline`.
+
+### Common file map (what to change vs keep)
+
+Change values:
+- `.env`
+- `transform/profiles.yml`
+- `infra/envs/dev/terraform.tfvars`
+
+Usually keep as-is:
+- `ingestion/pipeline/run.py`
+- `transform/models/*`
+- `dagster_orchestration/jobs/definitions.py`
+
+### Security checklist
+
+- Never commit `.env`, `terraform.tfvars`, or credential files.
+- Keep only examples in git: `.env.example`, `terraform.tfvars.example`, `profiles.yml.example`.
 
