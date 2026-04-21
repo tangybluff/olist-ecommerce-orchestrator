@@ -23,6 +23,10 @@ transform/dbt_packages/
 **/.terraform.lock.hcl
 **/terraform.tfstate
 **/terraform.tfstate.backup
+**/terraform.tfvars
+
+# dbt profiles (contains credentials)
+transform/profiles.yml
 
 # OS
 .DS_Store
