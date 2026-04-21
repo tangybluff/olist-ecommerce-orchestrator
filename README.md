@@ -164,7 +164,7 @@ The current architecture handles the full Olist historical dataset (~100k orders
 
 ## Dashboard
 
-The dashboard is built in **Looker Studio** connected directly to the BigQuery mart tables. It contains two tiles that satisfy the categorical and temporal distribution requirements.
+The [dashboard](https://datastudio.google.com/s/pkhNdZTDL5k) is built in **Looker Studio** connected directly to the BigQuery mart tables. It contains two tiles that satisfy the categorical and temporal distribution requirements.
 
 ### Tile 1 — Gross Merchandise Value over Time (temporal)
 
