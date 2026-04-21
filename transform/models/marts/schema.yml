@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: mrt_daily_sales
+    columns:
+      - name: order_date
+        tests: [not_null]
+
+  - name: mrt_state_sales
+    columns:
+      - name: customer_state
+        tests: [not_null]
+
+  - name: mrt_seller_performance
+    columns:
+      - name: seller_id
+        tests: [not_null]

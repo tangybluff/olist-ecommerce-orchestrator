@@ -1,0 +1,30 @@
+services:
+  ingestion:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+      # Mount your service account key file and update path in docs before running.
+      # - /absolute/host/path/gcp-sa.json:/opt/keys/gcp-sa.json:ro
+    command: ["python", "-m", "ingestion.pipeline.run"]
+
+  dagster-webserver:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+    command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-m", "dagster_orchestration.jobs.definitions"]
+    ports:
+      - "3000:3000"
+
+  dagster-daemon:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+    command: ["dagster-daemon", "run", "-m", "dagster_orchestration.jobs.definitions"]
+    depends_on:
+      - dagster-webserver

@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+.env
+transform/target
+transform/logs
+transform/dbt_packages
+infra/**/.terraform
+infra/**/terraform.tfstate
+infra/**/terraform.tfstate.backup
