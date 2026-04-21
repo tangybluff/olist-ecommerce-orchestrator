@@ -1,7 +1,31 @@
+# =============================================================================
+# transform/dbt_project.yml
+#
+# Purpose:
+#   The main configuration file for the dbt project.  It tells dbt where to
+#   find models, tests, seeds, and macros, and sets the materialisation
+#   strategy for each layer:
+#     staging     -> views   (lightweight, always reflect raw data)
+#     intermediate -> tables (persisted join-heavy CTE to avoid re-running)
+#     marts        -> tables (final analytics tables consumed by BI tools)
+#
+# Why we need it:
+#   Without this file dbt cannot locate models or apply consistent config.
+#   Separating materialisation per layer is a deliberate performance choice:
+#   views for staging keep storage costs near zero; tables for intermediate
+#   and mart layers avoid recomputing expensive joins on every BI query.
+#
+# Reproducibility – values that MAY need changing:
+#   name / profile  -> must match the profile name in profiles.yml
+#   +schema         -> appended to BQ_DBT_DATASET to form the full dataset name.
+#                      e.g. BQ_DBT_DATASET=olist_analytics -> olist_analytics_staging
+# =============================================================================
+
 name: "olist_analytics"
 version: "1.0.0"
 config-version: 2
 
+# CHANGE THIS if you rename the dbt profile in profiles.yml
 profile: "olist_analytics"
 
 model-paths: ["models"]
@@ -18,11 +42,11 @@ clean-targets:
 models:
   olist_analytics:
     staging:
-      +materialized: view
+      +materialized: view       # Thin views over raw BigQuery tables
       +schema: staging
     intermediate:
-      +materialized: table
+      +materialized: table      # Persisted wide table joining all staging models
       +schema: intermediate
     marts:
-      +materialized: table
+      +materialized: table      # Final aggregated tables ready for BI consumption
       +schema: marts

@@ -1,12 +1,37 @@
+# =============================================================================
+# transform/profiles.yml.example
+#
+# Purpose:
+#   Template for the dbt connection profile.  Copy this file to profiles.yml
+#   (never commit profiles.yml – it contains credential paths) and fill in
+#   your real values.
+#
+# Why we need it:
+#   dbt needs to know which BigQuery project, dataset, and credentials to use.
+#   profiles.yml is the standard dbt mechanism for this.  Using env_var()
+#   keeps secrets out of the file and makes it safe to commit the example.
+#
+# Reproducibility – ALL values below must be reviewed:
+#   GOOGLE_APPLICATION_CREDENTIALS  -> absolute path to your service account JSON key
+#   GCP_PROJECT_ID                   -> your GCP project ID
+#   BQ_DBT_DATASET                   -> base dataset name (default: olist_analytics)
+#   BQ_LOCATION                      -> BigQuery region (must match raw dataset region)
+#   threads                          -> increase for faster parallel model builds
+# =============================================================================
+
 olist_analytics:
   target: dev
   outputs:
     dev:
       type: bigquery
       method: service-account
+      # CHANGE THIS: path to your downloaded GCP service account JSON key file
       keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      # CHANGE THIS: your GCP project ID
       project: "{{ env_var('GCP_PROJECT_ID') }}"
+      # CHANGE THIS if you want a different base dataset name
       dataset: "{{ env_var('BQ_DBT_DATASET', 'olist_analytics') }}"
+      # CHANGE THIS if your BigQuery resources are in a different region
       location: "{{ env_var('BQ_LOCATION', 'europe-southwest1') }}"
       threads: 4
       timeout_seconds: 300

@@ -1,17 +1,31 @@
+# =============================================================================
+# models/staging/schema.yml
+#
+# Purpose:
+#   Defines column-level dbt tests (not_null, unique) for all staging models.
+#   These act as data quality gates: if a primary key is duplicated or null
+#   in the raw source, `dbt build` will fail before the bad data reaches marts.
+#
+# Why we need it:
+#   Staging is the first place we can catch upstream data quality issues before
+#   they silently corrupt aggregated metrics in the marts layer.  Running these
+#   tests daily (via Dagster) gives confidence that source data is trustworthy.
+# =============================================================================
+
 version: 2
 
 models:
   - name: stg_orders
     columns:
       - name: order_id
-        tests: [not_null, unique]
+        tests: [not_null, unique]  # Every order must have a unique identifier
       - name: customer_id
         tests: [not_null]
 
   - name: stg_order_items
     columns:
       - name: order_id
-        tests: [not_null]
+        tests: [not_null]          # Every line item must belong to an order
       - name: product_id
         tests: [not_null]
 
@@ -38,4 +52,4 @@ models:
   - name: stg_reviews
     columns:
       - name: review_id
-        tests: [not_null]
+        tests: [not_null]          # review_id is not unique (multiple per order)

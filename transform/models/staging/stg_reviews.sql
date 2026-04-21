@@ -1,3 +1,18 @@
+-- =============================================================================
+-- stg_reviews
+--
+-- Purpose:
+--   Casts the raw order reviews table.  review_score (1–5) is the primary
+--   satisfaction signal surfaced in every mart as avg_review_score.
+--
+-- Grain: one row per review_id (multiple reviews can exist per order).
+--
+-- Why we need it:
+--   Customer satisfaction scores are aggregated to order level in the
+--   intermediate layer and then surfaced in daily, seller, and state marts
+--   to correlate delivery performance with satisfaction.
+-- =============================================================================
+
 select
   cast(review_id as string) as review_id,
   cast(order_id as string) as order_id,

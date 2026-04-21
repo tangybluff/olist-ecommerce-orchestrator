@@ -1,3 +1,18 @@
+-- =============================================================================
+-- stg_orders
+--
+-- Purpose:
+--   Light type-casting layer over the raw orders table.  Converts string
+--   timestamps to TIMESTAMP type and ensures IDs are typed as strings.
+--
+-- Grain: one row per order (order_id is the primary key).
+--
+-- Why we need it:
+--   Raw CSV data loaded by dlt may arrive with loose typing.  Explicit casts
+--   here prevent type errors in downstream joins and ensure consistent data
+--   types across the transformation layer.
+-- =============================================================================
+
 select
   cast(order_id as string) as order_id,
   cast(customer_id as string) as customer_id,

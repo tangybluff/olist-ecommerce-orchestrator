@@ -1,14 +1,37 @@
+# =============================================================================
+# docker-compose.yml
+#
+# Purpose:
+#   Defines three services that share the same Docker image:
+#     ingestion        - runs the dlt Kaggle-to-BigQuery pipeline once and exits
+#     dagster-webserver - serves the Dagster UI on port 3000
+#     dagster-daemon   - executes scheduled and sensor-triggered runs in the background
+#
+# Why we need it:
+#   Allows the entire stack to be run locally with `docker compose up` without
+#   manually managing Python environments, ports, or process order.
+#
+# Reproducibility – before running:
+#   1. Copy .env.example to .env and fill in all required variables.
+#   2. Uncomment the volume mount line below and update the host path to your
+#      GCP service account key file.
+#   3. Ensure GOOGLE_APPLICATION_CREDENTIALS in .env points to /opt/keys/gcp-sa.json
+# =============================================================================
+
 services:
+  # One-shot ingestion: downloads Olist from Kaggle and loads into BigQuery, then exits.
   ingestion:
     build: .
     env_file:
       - .env
     volumes:
       - ./:/app
-      # Mount your service account key file and update path in docs before running.
+      # CHANGE THIS: uncomment and update the host path to your GCP service account key.
       # - /absolute/host/path/gcp-sa.json:/opt/keys/gcp-sa.json:ro
     command: ["python", "-m", "ingestion.pipeline.run"]
 
+  # Dagster UI: browse pipeline runs, inspect logs, trigger manual runs.
+  # Access at http://localhost:3000 once running.
   dagster-webserver:
     build: .
     env_file:
@@ -17,8 +40,10 @@ services:
       - ./:/app
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-m", "dagster_orchestration.jobs.definitions"]
     ports:
-      - "3000:3000"
+      - "3000:3000"  # CHANGE THIS if port 3000 is already in use on your host
 
+  # Dagster daemon: runs in the background to execute scheduled and sensor-triggered jobs.
+  # Must be running for the daily_schedule to fire automatically.
   dagster-daemon:
     build: .
     env_file:
@@ -27,4 +52,4 @@ services:
       - ./:/app
     command: ["dagster-daemon", "run", "-m", "dagster_orchestration.jobs.definitions"]
     depends_on:
-      - dagster-webserver
+      - dagster-webserver  # Wait for webserver to start before launching daemon

@@ -1,5 +1,25 @@
+# =============================================================================
+# infra/envs/dev/terraform.tfvars.example
+#
+# Purpose:
+#   Example variable values for the dev Terraform environment.
+#   Copy this file to terraform.tfvars and fill in your real values.
+#   NEVER commit terraform.tfvars – it is listed in .gitignore.
+#
+# Reproducibility – ALL placeholder values below MUST be changed:
+# =============================================================================
+
+# CHANGE THIS: your GCP project ID (find it in the GCP console)
 gcp_project_id = "your-gcp-project-id"
+
+# CHANGE THIS if your GCP region differs
 gcp_region = "europe-southwest1"
+
+# Must match BQ_RAW_DATASET in your .env file
 raw_dataset_id = "raw_olist_data"
+
+# Must match BQ_DBT_DATASET in your .env / profiles.yml
 analytics_dataset_base = "olist_analytics"
+
+# CHANGE THIS: must be globally unique across all of GCS
 staging_bucket_name = "your-olist-staging-bucket"

@@ -1,7 +1,26 @@
+# =============================================================================
+# models/staging/sources.yml
+#
+# Purpose:
+#   Declares the BigQuery raw dataset as a dbt source so staging models can
+#   reference it with {{ source('raw_olist_data', 'table_name') }} instead of
+#   hard-coded project/dataset strings.
+#
+# Why we need it:
+#   Source declarations give dbt awareness of the upstream raw tables.  This
+#   enables source freshness checks, lineage visualisation in dbt docs, and
+#   a single place to update if the raw dataset is renamed.
+#
+# Reproducibility – change if needed:
+#   schema  -> must match BQ_RAW_DATASET env var (default: raw_olist_data)
+#   table names -> must exactly match the BigQuery table names created by dlt
+# =============================================================================
+
 version: 2
 
 sources:
   - name: raw_olist_data
+    # CHANGE THIS if your raw BigQuery dataset has a different name
     schema: "{{ env_var('BQ_RAW_DATASET', 'raw_olist_data') }}"
     tables:
       - name: olist_customers_dataset

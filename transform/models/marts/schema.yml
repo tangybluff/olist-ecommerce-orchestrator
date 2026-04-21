@@ -1,17 +1,26 @@
+# =============================================================================
+# models/marts/schema.yml
+#
+# Purpose:
+#   Column-level dbt tests for all mart models.  These are the last quality
+#   gate before data reaches BI tools.  If a mart primary key is null or
+#   duplicated, `dbt build` fails and Dagster marks the run as failed.
+# =============================================================================
+
 version: 2
 
 models:
   - name: mrt_daily_sales
     columns:
       - name: order_date
-        tests: [not_null]
+        tests: [not_null]     # Every row must represent a real calendar date
 
   - name: mrt_state_sales
     columns:
       - name: customer_state
-        tests: [not_null]
+        tests: [not_null]     # Every row must be attributed to a known state
 
   - name: mrt_seller_performance
     columns:
       - name: seller_id
-        tests: [not_null]
+        tests: [not_null]     # Every row must be attributed to a known seller

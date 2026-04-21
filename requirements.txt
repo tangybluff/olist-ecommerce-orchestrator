@@ -1,11 +1,35 @@
+# =============================================================================
+# requirements.txt
+#
+# Purpose:
+#   Single dependency file for the entire project – ingestion, dbt, and
+#   Dagster are all installed into the same Python environment / Docker image.
+#
+# Why we need it:
+#   Pinning minimum versions ensures reproducibility across machines and CI.
+#   Using >= (not ==) allows patch-level security fixes to be picked up
+#   automatically while preventing breaking major-version changes.
+#
+# Reproducibility – change if needed:
+#   dlt[bigquery]                 -> dlt with the BigQuery extra; change the
+#                                    extra if you swap destinations
+#   kagglehub[pandas-datasets]    -> Kaggle download + pandas integration
+#   google-cloud-bigquery-storage -> required for fast BigQuery reads via
+#                                    the Storage Read API; <3.0.0 avoids a
+#                                    known breaking change in the 3.x series
+# =============================================================================
+
+# --- Ingestion ---
 dlt[bigquery]>=1.21.0
 kagglehub[pandas-datasets]>=0.3.13
 pandas>=2.2.0
 pyarrow>=17.0.0
 google-cloud-bigquery-storage>=2.25.0,<3.0.0
 
+# --- Transformation ---
 dbt-core>=1.10.0
 dbt-bigquery>=1.10.0
 
+# --- Orchestration ---
 dagster>=1.11.0
 dagster-webserver>=1.11.0

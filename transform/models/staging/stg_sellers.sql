@@ -1,3 +1,13 @@
+-- =============================================================================
+-- stg_sellers
+--
+-- Purpose:
+--   Casts the raw sellers table.  Exposes seller geography (city, state)
+--   used in the seller performance mart for regional breakdowns.
+--
+-- Grain: one row per seller_id.
+-- =============================================================================
+
 select
   cast(seller_id as string) as seller_id,
   cast(seller_zip_code_prefix as string) as seller_zip_code_prefix,
