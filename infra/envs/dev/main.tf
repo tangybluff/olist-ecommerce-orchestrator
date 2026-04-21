@@ -45,26 +45,19 @@ resource "google_bigquery_dataset" "analytics" {
   location   = var.gcp_region
 }
 
-# Secret Manager secret for the Kaggle username.
-# After `terraform apply`, populate the secret value manually:
-#   gcloud secrets versions add kaggle-username --data-file=<(echo -n 'YOUR_USERNAME')
-resource "google_secret_manager_secret" "kaggle_username" {
-  project   = var.gcp_project_id
-  secret_id = "kaggle-username"
-
-  replication {
-    auto {}
-  }
-}
-
-# Secret Manager secret for the Kaggle API key.
-# After `terraform apply`, populate the secret value manually:
-#   gcloud secrets versions add kaggle-key --data-file=<(echo -n 'YOUR_API_KEY')
-resource "google_secret_manager_secret" "kaggle_key" {
-  project   = var.gcp_project_id
-  secret_id = "kaggle-key"
-
-  replication {
-    auto {}
-  }
-}
+# Secret Manager secrets are optional and require the Secret Manager API to be
+# enabled in your GCP project.  They are commented out here so the pipeline
+# can run using the .env file instead.  Uncomment and re-run `terraform apply`
+# if you want to store Kaggle credentials in Secret Manager.
+#
+# resource "google_secret_manager_secret" "kaggle_username" {
+#   project   = var.gcp_project_id
+#   secret_id = "kaggle-username"
+#   replication { auto {} }
+# }
+#
+# resource "google_secret_manager_secret" "kaggle_key" {
+#   project   = var.gcp_project_id
+#   secret_id = "kaggle-key"
+#   replication { auto {} }
+# }

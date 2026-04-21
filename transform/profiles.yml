@@ -1,0 +1,12 @@
+olist_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: dezc-ecommerce-26
+      dataset: "{{ env_var('BQ_DBT_DATASET', 'olist_analytics') }}"
+      location: "{{ env_var('BQ_LOCATION', 'europe-southwest1') }}"
+      threads: 4
+      timeout_seconds: 300
+      priority: interactive

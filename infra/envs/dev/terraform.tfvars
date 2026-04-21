@@ -1,0 +1,5 @@
+gcp_project_id         = "dezc-ecommerce-26"
+gcp_region             = "europe-southwest1"
+raw_dataset_id         = "raw_olist_data"
+analytics_dataset_base = "olist_analytics"
+staging_bucket_name    = "dezc-ecommerce-26-olist-staging"
