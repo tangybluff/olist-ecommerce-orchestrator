@@ -1,12 +1,31 @@
 # Olist E-commerce Data Platform
 
-End-to-end ELT data platform for the [Olist Brazilian e-commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) using:
+## Objective
+
+Build a fully automated, cloud-native ELT pipeline that ingests the Olist Brazilian e-commerce dataset from Kaggle into Google BigQuery, transforms it into analytics-ready tables using dbt, and surfaces key business metrics in a Looker Studio dashboard — all orchestrated end-to-end by Dagster on a daily schedule and provisioned with Terraform.
+
+## Problem Statement
+
+E-commerce marketplaces generate raw transactional data across many systems — orders, payments, logistics, customer reviews, and seller records — that is scattered, untyped, and unsuitable for direct analysis. Analysts relying on raw exports face inconsistent data types, missing join keys, and no repeatable transformation logic, leading to ad-hoc queries, duplicated business logic across spreadsheets, and metrics that cannot be trusted.
+
+This project solves that by building a structured ELT platform on top of the Olist dataset, a real Brazilian marketplace with ~100k orders across 2016–2018. The pipeline:
+
+- Loads all nine raw CSV files into BigQuery as a versioned, immutable raw layer.
+- Applies consistent typing, joins, and aggregations in dbt to produce a set of mart tables that answer the three most operationally important questions for an e-commerce business: **daily sales trends**, **seller quality**, and **regional logistics performance**.
+- Runs automatically every day via a Dagster schedule so metrics are always fresh.
+
+**Pipeline type: Batch.** Data is ingested and transformed once per day on a scheduled trigger (not a streaming or event-driven architecture).
+
+---
+
+## Technology stack
 
 - **Ingestion:** Python + kagglehub + dlt (Kaggle → GCS → BigQuery)
 - **Transformation:** dbt Core (staging → intermediate → marts)
 - **Orchestration:** Dagster daily schedule
 - **Infrastructure:** Terraform on GCP (GCS, BigQuery, Secret Manager)
 - **Containerisation:** Docker / Docker Compose
+- **Dashboard:** Looker Studio (connected to BigQuery mart tables)
 
 ---
 
@@ -140,7 +159,41 @@ The current architecture handles the full Olist historical dataset (~100k orders
 - **Cloud Run Jobs:** Package the ingestion container as a Cloud Run Job triggered by Cloud Scheduler. This removes the need to keep a long-running VM or daemon process alive.
 - **Terraform remote state:** Add a GCS backend block to `providers.tf` so Terraform state is stored centrally and shared across team members.
 - **Multiple environments:** Duplicate `infra/envs/dev/` to `infra/envs/prod/` with production-grade settings (larger BigQuery slots reservation, versioned GCS bucket, VPC Service Controls).
-- **CI/CD deployment:** Extend `.github/workflows/ci.yml` to build and push the Docker image to Artifact Registry on merge to `main`, then trigger a Cloud Run Job or redeploy the Dagster daemon automatically.
+
+---
+
+## Dashboard
+
+The dashboard is built in **Looker Studio** connected directly to the BigQuery mart tables. It contains two tiles that satisfy the categorical and temporal distribution requirements.
+
+### Tile 1 — Gross Merchandise Value over Time (temporal)
+
+**Chart type:** Time series / Line chart  
+**Data source:** `mrt_daily_sales`  
+**X-axis:** `order_date`  
+**Y-axis:** `gross_merchandise_value`  
+**Secondary metric:** `avg_review_score` (right axis)  
+**Title:** "Daily GMV and Average Customer Satisfaction"
+
+This tile shows how total daily revenue (product price + freight) evolves over the dataset period (2016–2018), making it easy to spot seasonal peaks, promotional spikes, and the platform's overall growth trajectory. Overlaying the average review score reveals whether high-volume periods coincide with lower satisfaction — a common pattern during peak seasons when delivery capacity is stretched.
+
+### Tile 2 — Orders by Brazilian State (categorical)
+
+**Chart type:** Bar chart (sorted descending) or geo map of Brazil  
+**Data source:** `mrt_state_sales`  
+**Dimension:** `customer_state`  
+**Metrics:** `total_orders`, `gross_merchandise_value`, `avg_delivery_days`  
+**Title:** "Order Volume and Average Delivery Days by State"
+
+This tile shows the distribution of orders across Brazil's 27 states, exposing the strong São Paulo concentration and the logistics gap faced by northern/north-eastern states. Adding `avg_delivery_days` as a colour-coded secondary metric immediately highlights which states are under-served by the current fulfilment network.
+
+### How to create the dashboard
+
+1. Open [Looker Studio](https://lookerstudio.google.com) and create a new report.
+2. Add a **BigQuery** data source; select your GCP project → `olist_analytics_marts` dataset.
+3. Add `mrt_daily_sales` as the first data source and create a **Time series** chart with `order_date` as the dimension and `gross_merchandise_value` as the metric.
+4. Add `mrt_state_sales` as a second data source and create a **Bar chart** with `customer_state` as the dimension and `total_orders` as the metric, sorted descending.
+5. Add titles, axis labels, and a date range control for filtering.
 
 ---
 
@@ -203,15 +256,6 @@ dbt build --profiles-dir .
 cd ..
 dg dev -m dagster_orchestration.jobs.definitions
 ```
-
----
-
-## CI
-
-`.github/workflows/ci.yml` runs on every push:
-- Python import smoke tests
-- dbt dependency resolution (`dbt deps`)
-- dbt parse check (`dbt parse`)
 
 ---
 
