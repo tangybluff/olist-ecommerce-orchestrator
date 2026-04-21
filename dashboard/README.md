@@ -1,6 +1,6 @@
 Before starting, make sure `dbt build` has run successfully so the mart tables exist in BigQuery. Then:
 
----
+--- 
 
 ## Prerequisites
 
